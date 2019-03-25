@@ -4,13 +4,8 @@
 
 # imports
 import numpy as np
-import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-#import pycuda.autoinit
-#import pycuda.driver as drv
-#import pycuda.gpuarray as gpuarray
-#from pycuda.compiler import SourceModule
 
 # constants
 MATRIX_SIZE = 100 # board dimensions
@@ -20,25 +15,11 @@ class Game:
 	def __init__(self, size):
 		self.size = size
 		self.initialize_board(size)
-		self.initialize_kernel()
 		self.run()
 
-	# Randomly set each cell to be either 1 (live) or 0 (dead)
+	# Each cell is randomly set to either 1 (live) or 0 (dead)
 	def initialize_board(self, size):
 		self.board = np.random.randint(2, size = (self.size, self.size)).astype(np.float32)
-
-	# Incomplete
-	# Will utilize pycuda to parallelize computation
-	def initialize_kernel(self):
-		kernel_template = """
-		"""
-		#self.board_gpu = gpuarray.to_gpu(self.board)
-		#self.kernel_code = kernel_template % {
-		#	'MATRIX_SIZE': MATRIX_SIZE
-		#}
-		#self.mod = SourceModule(kernel_template)
-		#self.game = mod.get_function("")
-		pass
 
 	# Update each cell of the grid
 	# Any live cell with less than two live neighbors dies
@@ -72,6 +53,7 @@ class Game:
 					if (num == 3):
 						self.next_board[i][j] = 1
 
+		# Update animation and save updated board
 		img.set_data(self.next_board)
 		self.board[:] = self.next_board[:]
 		return img
