@@ -12,6 +12,11 @@ import pycuda.gpuarray as gpuarray
 from pycuda.tools import DeviceData
 from pycuda.compiler import SourceModule
 
+# NOTE
+# I have assumed a single block of (MATRIX_SIZE x MATRIX_SIZE) threads
+# MATRIX_SIZE squared therefore cannot exceed max_threads
+# max_threads is a number specific to each device
+
 # constants
 MATRIX_SIZE = 100 # board dimensions
 INTERVAL = 250 # in milliseconds
@@ -19,25 +24,25 @@ kernel = """
 	__global__ void lifeStep(float *board)
 	{
 
-		int cell = threadIdx.x												// current cell
+		int size = %(MATRIX_SIZE)s
+		int x = threadIdx.x		// current cell x value
+		int y = threadIdx.y		// current cell y value
 
-		int num = board[(threadIdx.x - blockDim.x) mod %(MATRIX_SIZE)s] + 	// above
-			board[threadIdx.x - blockDim.x) mod %(MATRIX_SIZE)s) - 1] + 	// above and left
-			board[threadIdx.x - blockDim.x) mod %(MATRIX_SIZE)s) + 1] + 	// above and right
-			board[(threadIdx.x - 1) mod %(MATRIX_SIZE)s] + 					// left
-			board[(threadIdx.x + 1) mod %(MATRIX_SIZE)s] + 					// right
-			board[(threadIdx.x + blockDim.x) mod %(MATRIX_SIZE)s)] + 		// below
-			board[(threadIdx.x + blockDim.x) mod %(MATRIX_SIZE)s) - 1] + 	// below and left
-			board[(threadIdx.x + blockDim.x) mod %(MATRIX_SIZE)s) + 1] + 	// below and right
+		int num = board[((y - 1) * size) mod size + x] +				// above
+			board[((y - 1) * size) mod size + (x - 1) mod size] +		// above and left
+			board[((y - 1) * size) mod size + (x + 1) mod size] +		// above and right
+			board[(y * size) + (x - 1) mod size] +						// left
+			board[(y * size) + (x + 1) mod size] +						// right
+			board[((y + 1) * size) mod size + x] +						// below
+			board[((y + 1) * size) mod size + (x - 1) mod size] +		// below and left
+			board[((y + 1) * size) mod size + (x + 1) mod size]			// below and right
 
-		int liveAnd2 = board[cell] && (num == 2)
-		int liveAnd3 = board[cell] && (num == 3)
-		int deadAnd3 = !(board[cell]) && (num == 3)
+		int liveAnd2 = board[y * size + x] && (num == 2)
+		int liveAnd3 = board[y * size + x] && (num == 3)
+		int deadAnd3 = !(board[y * size + x]) && (num == 3)
 
-		// How can I return the board without violating read/write data dependencies?
-		// Possibly accept a second parameter that also equals board and write to that?
-		board[cell] = liveAnd2 || liveAnd3 || deadAnd3
-
+		// write the new value back to the board
+		board[y * size + x] = liveAnd2 || liveAnd3 || deadAnd3
 	}
 """
 
