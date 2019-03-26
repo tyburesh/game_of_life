@@ -96,11 +96,11 @@ class Game:
 		# Call the kernel on our board
 		self.game(
 			# input
-			self.board_gpu
+			self.board_gpu,
 			# output
-			self.board_gpu2
+			self.board_gpu2,
 			# one block of MATRIX_SIZE x MATRIX_SIZE threads
-			block = (MATRIX_SIZE, MATRIX_SIZE, 1)
+			block = (MATRIX_SIZE, MATRIX_SIZE, 1),
 			)
 
 		print('Board after the call to lifeStep: ', self.board_gpu2)
