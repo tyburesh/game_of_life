@@ -3,9 +3,6 @@
 
 # imports
 import numpy as np
-import time
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import pycuda.autoinit
 import pycuda.driver as drv
 import pycuda.gpuarray as gpuarray
