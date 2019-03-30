@@ -10,9 +10,9 @@ from pycuda.tools import DeviceData
 from pycuda.compiler import SourceModule
 
 # constants
-MATRIX_SIZE = 4 # size of square board
+MATRIX_SIZE = 8 # size of square board
 BLOCK_SIZE = 2 # number of blocks
-N_ITERS = 1 # number of iterations
+N_ITERS = 100 # number of iterations
 
 class Game:
 	def __init__(self, matrix, iters, block):
@@ -27,10 +27,14 @@ class Game:
 	# Each cell is randomly set to either 1 (live) or 0 (dead)
 	def initialize_board(self):
 		#self.board = np.random.randint(2, size = (self.size, self.size)).astype(np.float32)
-		self.board = np.array([[0., 1., 1., 0.],
-			[1., 1., 0., 0.],
-			[1., 0., 0., 0.],
-			[0., 1., 0., 1.]
+		self.board = np.array([[0., 1., 1., 0., 0., 1., 1., 0.],
+			[1., 1., 0., 0., 1., 0., 0., 0.],
+			[1., 0., 0., 0., 1., 1., 1., 0.],
+			[0., 1., 0., 0., 0., 0., 1., 1.],
+			[0., 1., 1., 0., 0., 1., 1., 0.],
+			[1., 0., 0., 0., 1., 0., 0., 0.],
+			[1., 0., 0., 0., 1., 1., 1., 0.],
+			[0., 1., 0., 1., 0., 0., 1., 1.]
 		]).astype(np.float32)
 
 	# Incomplete
@@ -46,8 +50,8 @@ class Game:
 			{
 
 				// Matrix size - hard coded for now
-				unsigned int m_size = 4;
-				unsigned int num_cells = 16;
+				unsigned int m_size = 8;
+				unsigned int num_cells = 64;
 
 				// Column index of the element
 				unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -101,8 +105,7 @@ class Game:
 				unsigned int num = board[above] + board[below] + board[left] + board[right] +
 					board[above_left] + board[above_right] + board[below_left] + board[below_right];
 
-				printf("Thread_ID = %u 		Board Value = %f 		Num = %u\\n", thread_id, board[thread_id], num);
-				//printf("BlockDim.x = %u 	BlockDim.y = %u\\n", blockDim.x, blockDim.y);
+				//printf("Thread_ID = %u 		Board Value = %f 		Num = %u\\n", thread_id, board[thread_id], num);
 
 				// Live cell with 2 neighbors
 				unsigned int live_and2 = board[thread_id] && (num == 2);
@@ -135,24 +138,24 @@ class Game:
 	# Main driver function
 	def run(self):
 
-		#i = 0
-		#while i < N_ITERS: 
-		print('Board_gpu before the call to lifeStep: ', self.board_gpu)
+		i = 0
+		while i < N_ITERS: 
 			# Call the kernel on our board
-		self.game(
-			# input
-			self.board_gpu,
-			# output
-			self.next_board,
-			# grid of multiple blocks
-			grid = (self.n_blocks, self.n_blocks, 1),
-			# one block of MATRIX_SIZE x MATRIX_SIZE threads
-			block = (self.n_threads, self.n_threads, 1),
-			)
+			self.game(
+				# input
+				self.board_gpu,
+				# output
+				self.next_board,
+				# grid of multiple blocks
+				grid = (self.n_blocks, self.n_blocks, 1),
+				# one block of MATRIX_SIZE x MATRIX_SIZE threads
+				block = (self.n_threads, self.n_threads, 1),
+				)
 
-		print('Next_board after the call to lifeStep: ', self.next_board)
-			#self.board_gpu, self.next_board = self.next_board, self.board_gpu
-			#i += 1
+			self.board_gpu, self.next_board = self.next_board, self.board_gpu
+			i += 1
+
+		print('Final board: \n', self.board_gpu)
 
 if __name__ == '__main__':
 	Game(MATRIX_SIZE, N_ITERS, BLOCK_SIZE)
