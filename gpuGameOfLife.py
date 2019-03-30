@@ -27,10 +27,10 @@ class Game:
 	# Each cell is randomly set to either 1 (live) or 0 (dead)
 	def initialize_board(self):
 		#self.board = np.random.randint(2, size = (self.size, self.size)).astype(np.float32)
-		self.board = np.array([[0., 1., 2., 3.],
-			[4., 5., 6., 7.],
-			[8., 9., 10., 11.],
-			[12., 13., 14., 15.]
+		self.board = np.array([[0., 1., 1., 0.],
+			[1., 1., 0., 0.],
+			[1., 0., 0., 0.],
+			[0., 1., 0., 1.]
 		]).astype(np.float32)
 
 	# Incomplete
@@ -45,8 +45,9 @@ class Game:
 			__global__ void life_step(float *board, float *board2)
 			{
 
-				// Matrix size hard coded for now
+				// Matrix size - hard coded for now
 				unsigned int m_size = 4;
+				unsigned int num_cells = 16;
 
 				// Column index of the element
 				unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -55,27 +56,65 @@ class Game:
 				// Thread ID in the board array
 				unsigned int thread_id = y * m_size + x;
 
-				printf("Thread_ID = %u 		Board Value = %f\\n", thread_id, board[thread_id]);
+				unsigned int above = (thread_id - m_size) % num_cells;
+				unsigned int below = (thread_id + m_size) % num_cells;
+				unsigned int left;
+				if (thread_id % m_size == 0) {
+					left = thread_id + m_size - 1;
+				} else {
+					left = thread_id - 1;
+				}
+				unsigned int right;
+				if (thread_id % m_size == m_size - 1) {
+					right = thread_id - m_size + 1;
+				} else {
+					right = thread_id + 1;
+				}
+				unsigned int above_left;
+				if (thread_id % m_size == 0) {
+					above_left = (thread_id - 1) % num_cells;
+				} else {
+					above_left = (thread_id - m_size - 1) % num_cells;
+				}
+				unsigned int above_right;
+				if (thread_id % m_size == m_size - 1) {
+					above_right = (thread_id - blockDim.x * m_size + 1) % num_cells;
+				} else {
+					above_right = (thread_id - m_size + 1) % num_cells;
+				}
+				unsigned int below_left;
+				if (thread_id % m_size == 0) {
+					below_left = (thread_id + blockDim.x * m_size - 1) % num_cells;
+				} else {
+					below_left = (thread_id + m_size - 1) % num_cells;
+				}
+				unsigned int below_right;
+				if (thread_id % m_size == m_size - 1) {
+					below_right = (thread_id + 1) % num_cells;
+				} else {
+					below_right = (thread_id + m_size + 1) % num_cells;
+				}
 
 				// Game of life classically takes place on an infinite grid
 				// I've used a toirodal geometry for the problem
 				// The matrix wraps from top to bottom and from left to right
-				//unsigned int num = 0;
+				unsigned int num = board[above] + board[below] + board[left] + board[right] +
+					board[above_left] + board[above_right] + board[below_left] + board[below_right];
+
+				printf("Thread_ID = %u 		Board Value = %f 		Num = %u\\n", thread_id, board[thread_id], num);
+				//printf("BlockDim.x = %u 	BlockDim.y = %u\\n", blockDim.x, blockDim.y);
 
 				// Live cell with 2 neighbors
-				//unsigned int live_and2 = board[thread_id] && (num == 2);
+				unsigned int live_and2 = board[thread_id] && (num == 2);
 
 				// Live cell with 3 neighbors
-				//unsigned int live_and3 = board[thread_id] && (num == 3);
+				unsigned int live_and3 = board[thread_id] && (num == 3);
 
 				// Dead cell with 3 neighbors
-				//unsigned int dead_and3 = !(board[thread_id]) && (num == 3);
-
-				// Make sure all of the threads in the block have done their computation
-				//__syncthreads();
+				unsigned int dead_and3 = !(board[thread_id]) && (num == 3);
 
 				// write the new value back to the board
-				//board2[thread_id] = live_and2 || live_and3 || dead_and3;
+				board2[thread_id] = live_and2 || live_and3 || dead_and3;
 			}
 		"""
 
@@ -96,9 +135,10 @@ class Game:
 	# Main driver function
 	def run(self):
 
-		#print('Board_gpu before the call to lifeStep: ', self.board_gpu)
-
-		# Call the kernel on our board
+		#i = 0
+		#while i < N_ITERS: 
+		print('Board_gpu before the call to lifeStep: ', self.board_gpu)
+			# Call the kernel on our board
 		self.game(
 			# input
 			self.board_gpu,
@@ -110,8 +150,9 @@ class Game:
 			block = (self.n_threads, self.n_threads, 1),
 			)
 
-		#print('Next_board after the call to lifeStep: ', self.next_board)
-
+		print('Next_board after the call to lifeStep: ', self.next_board)
+			#self.board_gpu, self.next_board = self.next_board, self.board_gpu
+			#i += 1
 
 if __name__ == '__main__':
 	Game(MATRIX_SIZE, N_ITERS, BLOCK_SIZE)
