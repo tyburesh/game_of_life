@@ -1,5 +1,7 @@
 # Conway's game of life using PyCUDA
 # This program is designed to be run on a GPU
+# Due to CUDA limitations, the maximum allowable board has 
+# 65536 x 32768 items
 
 # imports
 import numpy as np
@@ -10,9 +12,9 @@ from pycuda.tools import DeviceData
 from pycuda.compiler import SourceModule
 
 # constants
-MATRIX_SIZE = 8 # size of square board
-BLOCK_SIZE = 2 # number of blocks
-N_ITERS = 100 # number of iterations
+MATRIX_SIZE = 32768 # size of square board
+BLOCK_SIZE = 32 # number of blocks
+N_ITERS = 1 # number of iterations
 
 class Game:
 	def __init__(self, matrix, iters, block):
@@ -27,6 +29,7 @@ class Game:
 	# Each cell is randomly set to either 1 (live) or 0 (dead)
 	def initialize_board(self):
 		self.board = np.random.randint(2, size = (self.size, self.size)).astype(np.float32)
+		#self.board = np.zeros((self.size, self.size)).astype(np.float32)
 
 	# PyCUDA implementation of Conway's game of life
 	# Kernel is written in C
@@ -52,7 +55,7 @@ class Game:
 				unsigned int thread_id = y * m_size + x;
 
 				// Game of life classically takes place on an infinite grid
-				// I've used a toirodal geometry for the problem
+				// I've used a toroidal geometry for the problem
 				// The matrix wraps from top to bottom and from left to right
 				unsigned int above = (thread_id - m_size) % num_cells;
 				unsigned int below = (thread_id + m_size) % num_cells;
@@ -115,11 +118,36 @@ class Game:
 		# Get kernel function from compiled module
 		self.game = self.mod.get_function('life_step')
 
+	# Prints runtime kernel info
+	def mem_info(self):
+	    shared = self.game.shared_size_bytes
+	    regs = self.game.num_regs
+	    local = self.game.local_size_bytes
+	    const = self.game.const_size_bytes
+	    mbpt = self.game.max_threads_per_block
+	    print("=MEM=\nLocal:{},\nShared:{},\nRegisters:{},\nConst:{},\nMax Threads/B:{}".format(local, shared, regs, const, mbpt))
+
+	# Prints static device info
+	def usage_info(self):
+		(free,total) = drv.mem_get_info()
+		print("Global memory occupancy:{}% free".format(free*100/total))
+
+		for devicenum in range(drv.Device.count()):
+		    device = drv.Device(devicenum)
+		    attrs = device.get_attributes()
+
+	    	#Beyond this point is just pretty printing
+		    print("\n===Attributes for device {}".format(device))
+		    for (key,value) in attrs.items():
+		        print("{}:{}".format(str(key),str(value)))
+
 	# Main driver function
 	# Life_step function is called N_ITERS times
 	def run(self):
+		self.mem_info()
+		self.usage_info()
 		i = 0
-		print('Starting board: \n', self.board_gpu)
+		print('\nStarting board: \n', self.board_gpu)
 		while i < N_ITERS: 
 			self.game(
 				# input
