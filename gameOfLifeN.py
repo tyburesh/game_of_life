@@ -1,6 +1,5 @@
 
 # Conway's game of life using PyCUDA
-# This program is designed to be run on GPU
 
 # imports
 import numpy as np
@@ -8,7 +7,6 @@ import numpy as np
 # constants
 MATRIX_SIZE = 6 # board dimensions
 N_ITERS = 100 # number of iterations
-INTERVAL = 10000 # in milliseconds
 
 class Game:
 	def __init__(self, size):
